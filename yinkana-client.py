@@ -4,6 +4,7 @@
 import socket
 import hashlib
 import sys
+import struct , base64
 
 
 ###################             COMMON FUNCTIONS            ###################
@@ -70,6 +71,23 @@ def get_before_palindrome(data, palindrome):
         pass
     return data_list
 
+####################            SPECIFIC CHALLENGE 5 FUNCTIONS         ###############
+# Copyright (C) 2009-2020  David Villa Alises
+
+def sum16(data):
+    if len(data) % 2:
+        data = b'\0' + data
+
+    return sum(struct.unpack('!%sH' % (len(data) // 2), data))
+
+
+def cksum(data):
+    sum_as_16b_words  = sum16(data)
+    sum_1s_complement = sum16(struct.pack('!L', sum_as_16b_words))
+    _1s_complement    = ~sum_1s_complement & 0xffff
+    return _1s_complement
+
+####################            CHALLENGES SOLVING FUNCTIONS         ###############
 
 def challenge0():
     '''Solves the challenge 0 ---> Sending e-mail user name'''
@@ -188,26 +206,47 @@ def challenge4(identifier4):
             size += chr(popped)
         if popped == ord(':'):
             break
-    print("Size of bin data : ", size)
-    #print("Bin data is without ASCII before is ", bin_data)
-    print("Size of 1st block: ", sys.getsizeof(bin_data))
     size_d = sys.getsizeof(bin_data)
     try:
         clientTCP.settimeout(2)
         while True:
             bin_data_recv = clientTCP.recv(int(size))
             bin_data += bin_data_recv
-            print("Size received : ", sys.getsizeof(bin_data_recv))
             size_d += sys.getsizeof(bin_data_recv)
-            print("Current size received : ", size_d)
     except socket.timeout:
         print('Receiving buffer is finally empty!')
     finally:
         sha_sum = hashlib.sha1(bin_data)
-        print(sha_sum.digest())
         clientTCP.sendall(sha_sum.digest())
-        print(clientTCP.recv(128).decode())
-
+    challenge5_instructions = receive_data(clientTCP,'>')
+    print(challenge5_instructions.decode())
+    identifier5 = challenge5_instructions.decode().partition('\n')[0].partition(':')[2]
+    clientTCP.close()
+    challenge5(identifier5)
+    
+    
+def challenge5(identifier5):
+    i = 1
+    clientUDP = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    print("Hi challenge 5 ", identifier5)
+    header, payload = struct.pack('!3s 1s 2s 2s',b'WYP',b'x\00',b'x\00x\00',b'x\00x\00'), base64.encodestring(bytes(identifier5, encoding="utf-8"))
+    message = header + payload
+    checksum = cksum(message)
+    print("checksum is ", checksum)
+    header = struct.pack('!3s 1s 2s 2s',b'WYP',b'x\00',b'x\00x\00',bytes(checksum))
+    message = header + payload
+    print("Message sent checksum is ", cksum(message), "and de message is ", message)
+    clientUDP.sendto(message, ('node1',7001))
+    reply = clientUDP.recv(1024)
+    challenge6_instructions = struct.unpack('!3s 1s 2s 1s %ds' % (len(reply)-7), reply)
+    print("El unpack hecho ", challenge6_instructions)
+    for item in challenge6_instructions:
+        if i==4:
+            print("Aqui viene la cadena")
+            print(base64.decodebytes(item).decode())
+        else:   
+            print(item.decode())
+        i += 1
 
 if __name__ == '__main__':
     challenge0()
