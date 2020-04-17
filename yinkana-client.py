@@ -4,7 +4,9 @@
 import socket
 import hashlib
 import sys
-import struct , base64
+import struct 
+import base64
+import codecs
 
 
 ###################             COMMON FUNCTIONS            ###################
@@ -173,16 +175,9 @@ def challenge3(identifier3):
         else:
             final_list[index] = invert_word(word)
         index += 1
-    #print ('Inverted final list:   ', final_list)
     message = ' '.join(final_list)
-
-    # Hay veces que el recv me recive mas palabras en vez de las instrucciones,
-    # quiza luego haya que modificar eso con la call a receive_data
-    # o quiza no, pero en todo caso podria estar guay si se da el caso contar el numero de veces que se reciben datos
-
     clientTCP.sendall(' '.join(final_list).encode())
     clientTCP.sendall(('--'+identifier3+'--').encode())
-    #print (clientTCP.recv(256).decode())
     challenge4_instructions = receive_data(clientTCP, '>')
     print(challenge4_instructions.decode())
     identifier4 = challenge4_instructions.decode().partition('\n')[
@@ -192,6 +187,7 @@ def challenge3(identifier3):
 
 
 def challenge4(identifier4):
+    
     '''Solves the challenge 4 ---> SHA1'''
 
     clientTCP = connect_at_TCP_server('node1', 10001)
@@ -226,27 +222,20 @@ def challenge4(identifier4):
     
     
 def challenge5(identifier5):
-    i = 1
+
+    '''Solves the challenge 5 ---> WYP'''
+
     clientUDP = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-    print("Hi challenge 5 ", identifier5)
-    header, payload = struct.pack('!3s 1s 2s 2s',b'WYP',b'x\00',b'x\00x\00',b'x\00x\00'), base64.encodestring(bytes(identifier5, encoding="utf-8"))
-    message = header + payload
+    base64_id = base64.b64encode(bytes(identifier5, encoding='utf-8'))
+    message = struct.pack('!3sbhH%ds' % len(base64_id),b'WYP', 0, 0, 0, base64_id)
     checksum = cksum(message)
-    print("checksum is ", checksum)
-    header = struct.pack('!3s 1s 2s 2s',b'WYP',b'x\00',b'x\00x\00',bytes(checksum))
-    message = header + payload
-    print("Message sent checksum is ", cksum(message), "and de message is ", message)
+    message = struct.pack('!3sbhH%ds' % len(base64_id), b'WYP', 0, 0, checksum, base64_id)
     clientUDP.sendto(message, ('node1',7001))
     reply = clientUDP.recv(1024)
-    challenge6_instructions = struct.unpack('!3s 1s 2s 1s %ds' % (len(reply)-7), reply)
+    challenge6_instructions = struct.unpack('!3sbHH %ds' % (len(reply)-8), reply)
     print("El unpack hecho ", challenge6_instructions)
-    for item in challenge6_instructions:
-        if i==4:
-            print("Aqui viene la cadena")
-            print(base64.decodebytes(item).decode())
-        else:   
-            print(item.decode())
-        i += 1
+    print(base64.b64decode(challenge6_instructions[4]).decode())
+    clientUDP.close()
 
 if __name__ == '__main__':
     challenge0()
