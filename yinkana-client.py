@@ -6,7 +6,8 @@ import hashlib
 import sys
 import struct 
 import base64
-import codecs
+import _thread
+import urllib.request
 
 
 ###################             COMMON FUNCTIONS            ###################
@@ -231,11 +232,44 @@ def challenge5(identifier5):
     checksum = cksum(message)
     message = struct.pack('!3sbhH%ds' % len(base64_id), b'WYP', 0, 0, checksum, base64_id)
     clientUDP.sendto(message, ('node1',7001))
-    reply = clientUDP.recv(1024)
+    reply = clientUDP.recv(2048)
     challenge6_instructions = struct.unpack('!3sbHH %ds' % (len(reply)-8), reply)
-    print("El unpack hecho ", challenge6_instructions)
     print(base64.b64decode(challenge6_instructions[4]).decode())
+    identifier6 = base64.b64decode(challenge6_instructions[4]).decode().partition('\n')[0].partition(':')[2]
+    challenge6(identifier6)
     clientUDP.close()
 
+def challenge6(identifier6):
+    
+    sender = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    web_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    web_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    web_server.bind(('',60000))
+    sender.connect(('node1',8003))
+    msg = identifier6 + ' ' + '60000'
+    sender.sendall(msg.encode()) 
+    web_server.listen(25)
+    while 1:
+        
+        child_sock, client = web_server.accept()
+        _thread.start_new_thread(handle, (child_sock, client))
+        print(sender.recv(1024).decode())
+        #print(child_sock, client)
+        #handle(child_sock, client)
+
+def handle (child_sock, client, url = 'http://www.ietf.org/rfc'):
+    
+    request = child_sock.recv(1024).decode()
+    print(request)
+    resource = request.partition('\n')[0].partition(' ')[2].partition(' ')[0]
+    print(resource)
+    child_sock.send('HTTP/1.1 200 OK\n'.encode())
+    child_sock.send('Content-Type: text/html\n\n'.encode())
+    resource_url = url+resource
+    print(resource_url)
+    url_content = urllib.request.urlopen(resource_url)
+    child_sock.send(url_content.read())
+    print(child_sock.recv(1024).decode())
+    
 if __name__ == '__main__':
     challenge0()
