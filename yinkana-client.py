@@ -205,7 +205,7 @@ def challenge4(identifier4):
             break
     size_d = sys.getsizeof(bin_data)
     try:
-        clientTCP.settimeout(2)
+        clientTCP.settimeout(1)
         while True:
             bin_data_recv = clientTCP.recv(int(size))
             bin_data += bin_data_recv
@@ -249,26 +249,35 @@ def challenge6(identifier6):
     msg = identifier6 + ' ' + '60000'
     sender.sendall(msg.encode()) 
     web_server.listen(25)
-    while 1:
-        child_sock, client = web_server.accept()
-        child_sock.settimeout(4)
-        _thread.start_new_thread(handle, (child_sock, client))
-        print(sender.recv(1024).decode())
+    n=0
+    try:
+        while 1:
+            n+=1
+            web_server.settimeout(3)
+            child_sock, client = web_server.accept()
+            _thread.start_new_thread(handle, (child_sock, client, n))
+    except socket.timeout:
+        print("No more requests!!!")
+    web_server.close()
+    #print(sender.recv(1024).decode())
 
-def handle (child_sock, client, url = 'http://www.ietf.org/rfc'):
+def handle (child_sock, client, n, url = 'http://www.ietf.org/rfc'):
     
-    request = child_sock.recv(32).decode()
-    #print(request)
-    resource = request.split(' ')[1]
-    print(resource)
-    reply_header = "HTTP/1.1 200 OK\r\n" + "Content-Type: text; charset=utf-8\r\n" +"\r\n"
+    print ("[REQUEST NUMMBER] " , n)
+    request = child_sock.recv(1024).decode()
+    print(request)
+    method, resource = request.split(' ')[0] , request.split(' ')[1]
+    if method == 'POST':
+        print("[EXIT THREAD WITH POST REQUEST] ...")
+        _thread.exit()
+    reply_header = "HTTP/1.1 200 OK\r\n" +"Content-Type: text/plain\r\n" +"\r\n"
     resource_url = url+resource
-    url_content = urllib.request.urlopen(resource_url).read().decode()
-    reply = reply_header + url_content
-    child_sock.sendall(reply.encode('utf-8'))
-    print('hiii')
-    child_sock.shutdown(socket.SHUT_WR)
+    url_content = urllib.request.urlopen(resource_url)
+    reply = reply_header.encode("utf-8") + url_content.read()
+    child_sock.sendall(reply)
+    print("mande reply")
     child_sock.close()
+
         
 if __name__ == '__main__':
     challenge0()
