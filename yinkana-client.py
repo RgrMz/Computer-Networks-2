@@ -250,26 +250,25 @@ def challenge6(identifier6):
     sender.sendall(msg.encode()) 
     web_server.listen(25)
     while 1:
-        
         child_sock, client = web_server.accept()
+        child_sock.settimeout(4)
         _thread.start_new_thread(handle, (child_sock, client))
         print(sender.recv(1024).decode())
-        #print(child_sock, client)
-        #handle(child_sock, client)
 
 def handle (child_sock, client, url = 'http://www.ietf.org/rfc'):
     
-    request = child_sock.recv(1024).decode()
-    print(request)
-    resource = request.partition('\n')[0].partition(' ')[2].partition(' ')[0]
+    request = child_sock.recv(32).decode()
+    #print(request)
+    resource = request.split(' ')[1]
     print(resource)
-    child_sock.send('HTTP/1.1 200 OK\n'.encode())
-    child_sock.send('Content-Type: text/html\n\n'.encode())
+    reply_header = "HTTP/1.1 200 OK\r\n" + "Content-Type: text; charset=utf-8\r\n" +"\r\n"
     resource_url = url+resource
-    print(resource_url)
-    url_content = urllib.request.urlopen(resource_url)
-    child_sock.send(url_content.read())
-    print(child_sock.recv(1024).decode())
-    
+    url_content = urllib.request.urlopen(resource_url).read().decode()
+    reply = reply_header + url_content
+    child_sock.sendall(reply.encode('utf-8'))
+    print('hiii')
+    child_sock.shutdown(socket.SHUT_WR)
+    child_sock.close()
+        
 if __name__ == '__main__':
     challenge0()
