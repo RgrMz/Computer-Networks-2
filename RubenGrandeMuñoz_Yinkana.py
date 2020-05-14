@@ -41,9 +41,9 @@ def receive_until_timeout(sock):
     try:
         while True:
             bin_data += sock.recv(1024)
-    except socket.timeout
+    except socket.timeout:
         print('All data has been received!')
-    soc.settimeout(None)    #Dissabling timeouts on sockets operations for this object
+    sock.settimeout(None)    #Dissabling timeouts on sockets operations for this object
     return bin_data
 
 ####################            SPECIFIC CHALLENGE 3 FUNCTIONS         ###############
@@ -208,7 +208,7 @@ def solve_challenge5(identifier5):
     message = struct.pack('!3sbhH%ds' % len(base64_id), b'WYP', 0, 0, checksum, base64_id)
     clientUDP.sendto(message, ('node1',7001))
     reply = clientUDP.recv(2048)
-    challenge6_instructions = struct.unpack('!3sbHH%ds' % (len(reply)-8), reply)
+    WYP_reply = struct.unpack('!3sbHH%ds' % (len(reply)-8), reply)
     challenge6_instructions = base64.b64decode(WYP_reply[4])    #Decoding reply's payload
     print(challenge6_instructions.decode())
     clientUDP.close()
