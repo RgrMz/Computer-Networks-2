@@ -246,6 +246,7 @@ def serve_resource(client_connection, url = 'https://uclm-arco.github.io/ietf-cl
     resource_url = url+resource
     if method == 'POST':
         identifier7 = request.partition('code:')[2].partition('\n')[0]
+        print(request.partition('code:')[2])
         solve_challenge7(identifier7)
         return 
     reply_header = "HTTP/1.1 200 OK\r\n" +"Content-Type: text/plain\r\n" +"\r\n"
